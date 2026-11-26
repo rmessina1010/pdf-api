@@ -71,11 +71,11 @@ router.get('/test', async (req, res) => {
 });
 
 router.post('/generate', pdfLimiter, async (req, res) => {
-  // const { html, css } = req.body;
+  const { html, css } = req.body;
 
-  // if (!html || typeof html !== 'string') {
-  //   return res.status(400).json({ error: 'Valid HTML string is required.' });
-  // }
+  if (!html || typeof html !== 'string') {
+    return res.status(400).json({ error: 'Valid HTML string is required.' });
+  }
 
   if (limit.pendingCount >= MAX_QUEUE_SIZE) {
     res.set('Retry-After', '5');
@@ -86,19 +86,25 @@ router.post('/generate', pdfLimiter, async (req, res) => {
     const pdfBuffer = await limit(async () => {
       const browser = await acquireBrowser();
       renderCount += 1;
-      const context = await browser.newContext();
+      const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+      });
 
       try {
         await context.route('**/*', (route) => {
           const url = route.request().url();
-          if (url.startsWith('data:') || url.startsWith('about:')) {
+          if (url.startsWith('data:') || url.startsWith('about:') 
+            ||  url.startsWith('https://dev.raymessinadesign.com')
+            ||  url.startsWith('https://fonts.googleapis.com')
+            ||  url.startsWith('https://fonts.gstatic.com'))
+         {
             return route.continue();
           }
           return route.abort();
         });
 
         const page = await context.newPage();
-        await page.navigate('https://raymessinadesign.com/resume.php', { waitUntil: 'load', timeout: 10000 });
+        await page.goto('https://dev.raymessinadesign.com/resume', { waitUntil: 'networkidle', timeout: 15000 });
          
         // await page.setContent(html, { waitUntil: 'load', timeout: 10000 });
 
